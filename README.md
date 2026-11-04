@@ -18,6 +18,12 @@ npm run dev
 
 לאחר מכן פתח בדפדפן את הכתובת שמופיעה בטרמינל: **http://localhost:5173**
 
+## גרסה אונליין (GitHub Pages)
+
+**https://guyzem.github.io/smart-lead-dashboard/**
+
+כל push ל-`main` מריץ את GitHub Actions ([deploy.yml](.github/workflows/deploy.yml)): קודם הבדיקות, אחר כך build, ורק אם הכול עבר מתבצע פרסום. נתוני הדמה והשינויים נשמרים ב-localStorage של כל דפדפן בנפרד.
+
 ## פקודות
 
 | פקודה | מה היא עושה |
