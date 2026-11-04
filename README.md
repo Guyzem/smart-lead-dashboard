@@ -51,6 +51,19 @@ src/
 e2e/                      בדיקות Playwright
 ```
 
+## תהליך הפיתוח (שיעור 3)
+
+| שלב | מה נעשה |
+|---|---|
+| SPEC | נכתב `SPEC.md` לפי חמש השאלות (Who, What, Where, Features, Done Means) |
+| REVIEW | המפרט והתוכנית הוצגו ואושרו לפני כתיבת קוד ולפני התקנות |
+| BUILD | Branch לכל משימה: `chore/project-setup` → `feat/data-and-metrics` → `feat/dashboard-ui` → `test/e2e` → `docs/readme` |
+| TEST | 68 בדיקות יחידה ורכיבים + 6 בדיקות E2E, כולן עוברות. קריטריוני D1–D11 ומקרי הקצה מכוסים |
+| COMMIT | Commit לכל משימה לוגית, עם הפניה לסעיף ב-SPEC (`git log --oneline`) |
+
+ממצא בזמן הבדיקות: בבדיקת E2E הלחיצה על מרכז שורה בטבלה נפלה על תפריט הסטטוס, שבכוונה אינו פותח את כרטיס הליד. הבדיקה תוקנה כך שתלחץ על שם הלקוח.
+ליטוש לאחר צילומי מסך: גרף הסטטוס הוסב לעמודות אופקיות כדי שהתוויות לא יחפפו במובייל, והמקרא של גרף המגמה הוצא אל כותרת הכרטיס.
+
 ## Stack ולמה
 
 React + TypeScript + Vite + Tailwind CSS + Recharts, ובדיקות עם Vitest, Testing Library ו-Playwright.
