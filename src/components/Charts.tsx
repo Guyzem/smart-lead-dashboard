@@ -1,7 +1,8 @@
 import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { SOURCE_META, STATUS_META } from '../constants';
 import type { CountRow, FunnelRow, TrendPoint } from '../lib/metrics';
-import { formatCurrency, formatNumber, formatPercent } from '../lib/format';
+import { formatMoney, formatNumber, formatPercent } from '../lib/format';
+import { useMoney } from '../state/useDisplayCurrency';
 import type { Source, Status } from '../types';
 import { Card, EmptyState } from './ui';
 
@@ -116,6 +117,7 @@ export function TrendChart({ points }: { points: TrendPoint[] }) {
 }
 
 export function FunnelChart({ rows, wonValue }: { rows: FunnelRow[]; wonValue: number }) {
+  const money = useMoney(); // SPEC X1
   const top = rows[0]?.count ?? 0;
   return (
     <Card title="משפך המרות" subtitle="כמה לידים הגיעו לכל שלב (כולל לידים שאבדו בהמשך)">
@@ -136,7 +138,7 @@ export function FunnelChart({ rows, wonValue }: { rows: FunnelRow[]; wonValue: n
               </div>
             </li>
           ))}
-          <li className="pt-1 text-xs text-slate-500">שווי עסקאות שנסגרו: <span className="font-semibold text-emerald-600">{formatCurrency(wonValue)}</span></li>
+          <li className="pt-1 text-xs text-slate-500">שווי עסקאות שנסגרו: <span className="font-semibold text-emerald-600">{formatMoney(wonValue, money)}</span></li>
         </ol>
       )}
     </Card>

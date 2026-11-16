@@ -1,12 +1,14 @@
 import { AlarmClock, ChevronLeft } from 'lucide-react';
 import { UNASSIGNED, UNASSIGNED_LABEL } from '../constants';
 import type { RepRow } from '../lib/metrics';
-import { formatCompactCurrency, formatCurrency, formatPercent, orEmpty } from '../lib/format';
+import { formatCompactMoney, formatMoney, formatPercent, orEmpty } from '../lib/format';
+import { useMoney } from '../state/useDisplayCurrency';
 import type { ScoredLead } from '../types';
 import { Card, EmptyState, PriorityBadge, ScorePill, StatusBadge } from './ui';
 
 /** "במה לטפל היום": open leads ranked by rule-based score (SPEC S2). */
 export function PriorityList({ leads, onOpen, onShowAll }: { leads: ScoredLead[]; onOpen: (id: string) => void; onShowAll: () => void }) {
+  const money = useMoney(); // SPEC X1
   const top = leads
     .filter((l) => l.priority)
     .sort((a, b) => b.score.total - a.score.total || Number(b.stale) - Number(a.stale))
@@ -24,7 +26,7 @@ export function PriorityList({ leads, onOpen, onShowAll }: { leads: ScoredLead[]
                     {l.name}
                     {l.stale && <AlarmClock className="size-3.5 shrink-0 text-rose-500" aria-label="ממתין לטיפול" />}
                   </p>
-                  <p className="truncate text-xs text-slate-500">{orEmpty(l.company)} · {formatCurrency(l.value)}</p>
+                  <p className="truncate text-xs text-slate-500">{orEmpty(l.company)} · {formatMoney(l.value, money)}</p>
                 </div>
                 <div className="hidden sm:block"><StatusBadge status={l.status} /></div>
                 <PriorityBadge priority={l.priority} />
@@ -39,6 +41,7 @@ export function PriorityList({ leads, onOpen, onShowAll }: { leads: ScoredLead[]
 }
 
 export function RepTable({ rows, onSelect }: { rows: RepRow[]; onSelect: (owner: string) => void }) {
+  const money = useMoney(); // SPEC X1
   return (
     <Card title="ביצועי נציגים" subtitle="לחיצה על נציג מציגה רק את הלידים שלו">
       {rows.length === 0 ? <EmptyState title="אין נתונים להצגה" /> : (
@@ -64,7 +67,7 @@ export function RepTable({ rows, onSelect }: { rows: RepRow[]; onSelect: (owner:
                   <td className={`py-2.5 tabular-nums ${r.stale ? 'font-semibold text-rose-600' : ''}`}>{r.stale}</td>
                   <td className="py-2.5 tabular-nums text-emerald-600">{r.won}</td>
                   <td className="py-2.5 tabular-nums">{formatPercent(r.conversionRate)}</td>
-                  <td className="py-2.5 tabular-nums" title={formatCurrency(r.pipelineValue)}>{formatCompactCurrency(r.pipelineValue)}</td>
+                  <td className="py-2.5 tabular-nums" title={formatMoney(r.pipelineValue, money)}>{formatCompactMoney(r.pipelineValue, money)}</td>
                 </tr>
               ))}
             </tbody>

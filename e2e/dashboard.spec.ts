@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { generateLeads } from '../src/data/generateLeads';
 import { FAKE_TOKEN, pages, toAirtableRecord } from '../src/test/airtableFixtures';
+import { FRANKFURTER_RESPONSE } from '../src/test/rateFixtures';
 
 /**
  * End-to-end checks for SPEC §5 criteria that need a real browser (D1, D5, D8–D12).
@@ -134,5 +135,66 @@ test('edge: search with no results shows empty state', async ({ page }) => {
   await page.getByLabel('חיפוש לפי שם לקוח או חברה').fill('אין-כזה-לקוח');
   await expect(kpi(page, 'total')).toHaveText('0');
   await expect(page.getByTestId('result-count')).toContainText('מציג 0');
+});
+/** SPEC X1: Frankfurter is stubbed too. Returns a counter of rate requests. */
+async function stubRates(page: Page, status = 200) {
+  const calls = { count: 0 };
+  await page.route('https://api.frankfurter.dev/**', (route) => {
+    calls.count++;
+    return status === 200 ? route.fulfill({ json: FRANKFURTER_RESPONSE }) : route.fulfill({ status, json: { message: 'error' } });
+  });
+  return calls;
+}
+const digits = (s: string) => Number(s.replace(/[^\d]/g, ''));
+
+test('D16: USD shows converted amounts in KPI, table and lead card, cached for the next switch', async ({ page }) => {
+  const errors = trackErrors(page);
+  const calls = await stubRates(page);
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.getByRole('complementary', { name: 'תפריט ראשי' }).getByRole('button', { name: /כל הלידים/ }).click();
+  // First row that has an estimated value (rows without one show '—' in every currency).
+  const row = page.getByTestId('lead-row').filter({ has: page.getByTestId('lead-value').filter({ hasText: /\d/ }) }).first();
+  const ilsValue = digits(await row.getByTestId('lead-value').innerText());
+  const scoreBefore = await row.getByTitle('ציון מבוסס חוקים (0–100)').innerText();
+  const pipelineTitle = await kpi(page, 'pipeline').getAttribute('title');
+  expect(ilsValue).toBeGreaterThan(0);
+
+  await page.getByLabel('מטבע תצוגה').selectOption('USD');
+  await expect(page.getByTestId('rate-note')).toHaveText('שער נכון ל-13.11.2026 · מקור: Frankfurter / ECB');
+  await expect(row.getByTestId('lead-value')).toContainText('$');
+  expect(digits(await row.getByTestId('lead-value').innerText())).toBe(Math.round(ilsValue * FRANKFURTER_RESPONSE.rates.USD));
+  await expect(kpi(page, 'pipeline')).toContainText('$');
+  expect(digits((await kpi(page, 'pipeline').getAttribute('title')) ?? '')).toBe(Math.round(digits(pipelineTitle ?? '') * FRANKFURTER_RESPONSE.rates.USD));
+  await expect(row.getByTitle('ציון מבוסס חוקים (0–100)')).toHaveText(scoreBefore);
+
+  await row.getByTestId('lead-name').click();
+  const valueRow = page.getByTestId('lead-drawer').getByText('שווי משוער').locator('..');
+  await expect(valueRow).toContainText('$');
+  expect(digits(await valueRow.innerText())).toBe(Math.round(ilsValue * FRANKFURTER_RESPONSE.rates.USD));
+  await page.keyboard.press('Escape');
+
+  await page.getByLabel('מטבע תצוגה').selectOption('EUR');
+  await expect(row.getByTestId('lead-value')).toContainText('€');
+  await page.getByLabel('מטבע תצוגה').selectOption('ILS');
+  await expect(row.getByTestId('lead-value')).toContainText('₪');
+  await expect(page.getByTestId('rate-note')).toHaveCount(0);
+  expect(calls.count).toBe(1);
+  expect(errors).toEqual([]);
+});
+
+test('D16/D9: rate note fits at 375px without horizontal scroll', async ({ page }) => {
+  await stubRates(page);
+  await page.setViewportSize({ width: 375, height: 900 });
+  await page.getByLabel('מטבע תצוגה').selectOption('GBP');
+  await expect(page.getByTestId('rate-note')).toBeVisible();
+  expect(await noHorizontalScroll(page)).toBe(true);
+});
+
+test('D16: rate error falls back to ₪ with a Hebrew message', async ({ page }) => {
+  await stubRates(page, 500);
+  await page.getByLabel('מטבע תצוגה').selectOption('USD');
+  await expect(page.getByTestId('rates-error')).toHaveText('לא ניתן לטעון שערי מטבע כרגע. הסכומים מוצגים בשקלים.');
+  await expect(page.getByLabel('מטבע תצוגה')).toHaveValue('ILS');
+  await expect(kpi(page, 'pipeline')).toContainText('₪');
 });
 });

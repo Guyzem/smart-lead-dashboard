@@ -3,7 +3,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { SOURCE_META, STATUS_META } from '../constants';
 import type { SortDir, SortKey } from '../lib/filters';
 import { sortLeads } from '../lib/filters';
-import { EMPTY, formatCurrency, formatDate, orEmpty } from '../lib/format';
+import { formatDate, formatMoney, orEmpty } from '../lib/format';
+import { useMoney } from '../state/useDisplayCurrency';
 import { STATUSES } from '../types';
 import type { ScoredLead, Status } from '../types';
 import { Card, EmptyState, PriorityBadge, ScorePill } from './ui';
@@ -43,6 +44,7 @@ export function LeadsTable({ leads, onOpen, onStatusChange, onClearFilters, filt
   onClearFilters: () => void;
   filterKey: string;
 }) {
+  const money = useMoney(); // SPEC X1
   const [sortKey, setSortKey] = useState<SortKey>('score');
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [page, setPage] = useState(0);
@@ -104,7 +106,7 @@ export function LeadsTable({ leads, onOpen, onStatusChange, onClearFilters, filt
                     <td className="whitespace-nowrap px-4 py-3 tabular-nums text-slate-600">{formatDate(l.createdAt)}</td>
                     <td className="px-4 py-3"><StatusSelect lead={l} onChange={(s) => onStatusChange(l.id, s)} /></td>
                     <td className="whitespace-nowrap px-4 py-3 text-slate-600">{l.owner ?? <span className="text-slate-400">לא משויך</span>}</td>
-                    <td className="whitespace-nowrap px-4 py-3 font-medium tabular-nums text-slate-800">{l.value == null ? EMPTY : formatCurrency(l.value)}</td>
+                    <td className="whitespace-nowrap px-4 py-3 font-medium tabular-nums text-slate-800" data-testid="lead-value">{formatMoney(l.value, money)}</td>
                     <td className="px-4 py-3" data-testid="lead-score"><ScorePill score={l.score.total} /></td>
                     <td className="px-4 py-3"><PriorityBadge priority={l.priority} /></td>
                   </tr>

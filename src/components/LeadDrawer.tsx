@@ -3,7 +3,8 @@ import type { FormEvent, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { INTEREST_LABELS, SOURCE_META, STALE_DAYS, URGENCY_LABELS } from '../constants';
 import { daysSince } from '../lib/dates';
-import { formatCurrency, formatDate, orEmpty } from '../lib/format';
+import { formatCurrency, formatDate, formatMoney, orEmpty } from '../lib/format';
+import { useMoney } from '../state/useDisplayCurrency';
 import type { ScoredLead, Status } from '../types';
 import { StatusSelect } from './LeadsTable';
 import { PriorityBadge, ScorePill } from './ui';
@@ -25,6 +26,7 @@ export function LeadDrawer({ lead, now, onClose, onStatusChange, onAddNote }: {
   onStatusChange: (id: string, s: Status) => void;
   onAddNote: (id: string, text: string) => void;
 }) {
+  const money = useMoney(); // SPEC X1
   const [draft, setDraft] = useState('');
   useEffect(() => setDraft(''), [lead?.id]);
   useEffect(() => {
@@ -80,7 +82,7 @@ export function LeadDrawer({ lead, now, onClose, onStatusChange, onAddNote }: {
           <div className="divide-y divide-slate-100 rounded-xl border border-slate-100 px-3">
             <Row icon={<Building2 className="size-4" />} label="מקור">{SOURCE_META[lead.source].label}</Row>
             <Row icon={<User className="size-4" />} label="נציג">{lead.owner ?? 'לא משויך'}</Row>
-            <Row icon={<Wallet className="size-4" />} label="שווי משוער">{formatCurrency(lead.value)}</Row>
+            <Row icon={<Wallet className="size-4" />} label="שווי משוער">{formatMoney(lead.value, money)}</Row>
             <Row icon={<Calendar className="size-4" />} label="תאריך קבלה">{formatDate(lead.createdAt)}</Row>
             <Row icon={<Calendar className="size-4" />} label="פעילות אחרונה">{formatDate(lead.lastActivityAt)}</Row>
             <Row icon={<Phone className="size-4" />} label="טלפון"><span dir="ltr">{lead.phone}</span></Row>

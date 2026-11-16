@@ -1,18 +1,20 @@
 import { CheckCircle2, Coins, Inbox, Percent, Timer, Users } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import type { Kpis } from '../lib/metrics';
-import { formatCompactCurrency, formatCurrency, formatNumber, formatPercent } from '../lib/format';
+import { formatCompactMoney, formatMoney, formatNumber, formatPercent } from '../lib/format';
+import { useMoney } from '../state/useDisplayCurrency';
 
 interface Item { id: string; label: string; value: string; hint: string; icon: LucideIcon; tone: string }
 
 export function KpiCards({ kpis }: { kpis: Kpis }) {
+  const money = useMoney(); // SPEC X1
   const items: Item[] = [
     { id: 'total', label: 'סה"כ לידים', value: formatNumber(kpis.total), hint: 'בטווח המסונן', icon: Users, tone: 'bg-indigo-50 text-indigo-600' },
     { id: 'new', label: 'לידים חדשים', value: formatNumber(kpis.newCount), hint: 'טרם נוצר קשר', icon: Inbox, tone: 'bg-blue-50 text-blue-600' },
     { id: 'in-progress', label: 'בטיפול', value: formatNumber(kpis.inProgress), hint: 'קשר · הסמכה · הצעה', icon: Timer, tone: 'bg-amber-50 text-amber-600' },
-    { id: 'won', label: 'הומרו ללקוחות', value: formatNumber(kpis.won), hint: `${formatCurrency(kpis.wonValue)} נסגרו`, icon: CheckCircle2, tone: 'bg-emerald-50 text-emerald-600' },
+    { id: 'won', label: 'הומרו ללקוחות', value: formatNumber(kpis.won), hint: `${formatMoney(kpis.wonValue, money)} נסגרו`, icon: CheckCircle2, tone: 'bg-emerald-50 text-emerald-600' },
     { id: 'conversion', label: 'שיעור המרה', value: formatPercent(kpis.conversionRate), hint: 'הומרו מתוך כלל הלידים', icon: Percent, tone: 'bg-violet-50 text-violet-600' },
-    { id: 'pipeline', label: 'שווי פוטנציאלי', value: formatCompactCurrency(kpis.pipelineValue), hint: 'סכום לידים פתוחים', icon: Coins, tone: 'bg-rose-50 text-rose-600' },
+    { id: 'pipeline', label: 'שווי פוטנציאלי', value: formatCompactMoney(kpis.pipelineValue, money), hint: 'סכום לידים פתוחים', icon: Coins, tone: 'bg-rose-50 text-rose-600' },
   ];
 
   return (
@@ -25,7 +27,7 @@ export function KpiCards({ kpis }: { kpis: Kpis }) {
               <Icon className="size-4" aria-hidden />
             </span>
           </div>
-          <p className="mt-2 truncate text-xl font-bold tabular-nums text-slate-900 sm:text-2xl" data-testid="kpi-value" title={id === 'pipeline' ? formatCurrency(kpis.pipelineValue) : undefined}>
+          <p className="mt-2 truncate text-xl font-bold tabular-nums text-slate-900 sm:text-2xl" data-testid="kpi-value" title={id === 'pipeline' ? formatMoney(kpis.pipelineValue, money) : undefined}>
             {value}
           </p>
           <p className="mt-1 truncate text-xs text-slate-400">{hint}</p>

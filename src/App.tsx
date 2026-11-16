@@ -9,6 +9,7 @@ import { LeadsTable } from './components/LeadsTable';
 import { ScoringPage } from './components/ScoringPage';
 import type { NavId } from './components/Sidebar';
 import { Sidebar } from './components/Sidebar';
+import { CurrencySelector } from './components/CurrencySelector';
 import type { LeadFilters } from './lib/filters';
 import { EMPTY_FILTERS, filterLeads } from './lib/filters';
 import { formatDate } from './lib/format';
@@ -16,6 +17,8 @@ import { computeKpis, countBySource, countByStatus, funnel, repPerformance, week
 import { enrichLeads } from './lib/scoring';
 import { defaultStorage } from './lib/storage';
 import { useLeadStore } from './state/useLeadStore';
+import { MoneyContext, useDisplayCurrency } from './state/useDisplayCurrency';
+import type { ExchangeRates } from './lib/exchangeRates';
 import type { Lead } from './types';
 
 export interface AirtableConnection {
@@ -34,16 +37,19 @@ const TITLES: Record<View, { title: string; subtitle: string }> = {
   scoring: { title: 'שיטת הניקוד', subtitle: 'איך המערכת מתעדפת לידים' },
 };
 
-export default function App({ now: nowProp, storage = defaultStorage(), leads, storageKey, connection }: {
+export default function App({ now: nowProp, storage = defaultStorage(), leads, storageKey, connection, loadRates }: {
   now?: Date;
   storage?: Storage;
   /** Leads loaded from Airtable. Omitted → deterministic mock data (tests / offline). */
   leads?: Lead[];
   storageKey?: string;
   connection?: AirtableConnection;
+  /** SPEC X1: injectable rate loader (tests). Default: Frankfurter with a 1-hour cache. */
+  loadRates?: () => Promise<ExchangeRates>;
 }) {
   const now = useMemo(() => nowProp ?? new Date(), [nowProp]);
   const store = useLeadStore(now, storage, leads, storageKey);
+  const fx = useDisplayCurrency(loadRates);
 
   const [view, setView] = useState<View>('overview');
   const [filters, setFilters] = useState<LeadFilters>(EMPTY_FILTERS);
@@ -84,6 +90,7 @@ export default function App({ now: nowProp, storage = defaultStorage(), leads, s
   const { title, subtitle } = TITLES[view];
 
   return (
+    <MoneyContext.Provider value={fx.money}>
     <div className="min-h-screen lg:flex">
       <Sidebar active={activeNav} staleCount={allStale} open={menuOpen} onNavigate={navigate} onClose={() => setMenuOpen(false)} onReset={reset} onDisconnect={connection?.onDisconnect} />
 
@@ -97,6 +104,8 @@ export default function App({ now: nowProp, storage = defaultStorage(), leads, s
               <h1 className="truncate text-lg font-bold text-slate-900 sm:text-xl">{title}</h1>
               <p className="hidden truncate text-sm text-slate-500 sm:block">{subtitle}</p>
             </div>
+            {/* SPEC X1 */}
+            <CurrencySelector fx={fx} />
             {connection ? (
               <>
                 <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700 ring-1 ring-inset ring-emerald-600/20 md:inline-flex" data-testid="source-badge">
@@ -120,6 +129,11 @@ export default function App({ now: nowProp, storage = defaultStorage(), leads, s
         </header>
 
         <main className="mx-auto max-w-[1600px] space-y-5 p-4 lg:p-8">
+          {fx.error && (
+            <p role="alert" data-testid="rates-error" className="flex items-start gap-2 rounded-xl bg-amber-50 px-3 py-2.5 text-sm text-amber-800 ring-1 ring-inset ring-amber-600/20">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" /> <span>{fx.error}</span>
+            </p>
+          )}
           {connection?.refreshError && (
             <p role="alert" className="flex items-start gap-2 rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700 ring-1 ring-inset ring-rose-600/20">
               <AlertCircle className="mt-0.5 size-4 shrink-0" /> <span>הרענון נכשל: {connection.refreshError} מוצגים הנתונים שנטענו קודם.</span>
@@ -164,5 +178,6 @@ export default function App({ now: nowProp, storage = defaultStorage(), leads, s
 
       <LeadDrawer lead={selected} now={now} onClose={closeDrawer} onStatusChange={store.setStatus} onAddNote={store.addNote} />
     </div>
+    </MoneyContext.Provider>
   );
 }
