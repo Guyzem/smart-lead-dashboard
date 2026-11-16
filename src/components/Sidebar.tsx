@@ -1,4 +1,4 @@
-import { AlarmClock, Calculator, LayoutDashboard, RotateCcw, Users, X, Zap } from 'lucide-react';
+import { AlarmClock, Calculator, LayoutDashboard, LogOut, RotateCcw, Users, X, Zap } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 export type NavId = 'overview' | 'leads' | 'stale' | 'scoring';
@@ -10,13 +10,15 @@ const NAV: { id: NavId; label: string; icon: LucideIcon }[] = [
   { id: 'scoring', label: 'שיטת הניקוד', icon: Calculator },
 ];
 
-export function Sidebar({ active, staleCount, open, onNavigate, onClose, onReset }: {
+export function Sidebar({ active, staleCount, open, onNavigate, onClose, onReset, onDisconnect }: {
   active: NavId;
   staleCount: number;
   open: boolean;
   onNavigate: (id: NavId) => void;
   onClose: () => void;
   onReset: () => void;
+  /** Present when data comes from Airtable. */
+  onDisconnect?: () => void;
 }) {
   return (
     <>
@@ -58,9 +60,18 @@ export function Sidebar({ active, staleCount, open, onNavigate, onClose, onReset
         </nav>
         <div className="space-y-3 border-t border-slate-800 p-4">
           <button type="button" onClick={onReset} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-slate-400 hover:bg-slate-800 hover:text-white">
-            <RotateCcw className="size-4" /> איפוס נתוני דמה
+            <RotateCcw className="size-4" /> {onDisconnect ? 'ביטול שינויים מקומיים' : 'איפוס נתוני דמה'}
           </button>
-          <p className="px-2 text-[11px] leading-relaxed text-slate-500">כל הנתונים במערכת הם נתוני דמה (Mock Data) לצורכי תרגול.</p>
+          {onDisconnect && (
+            <button type="button" onClick={onDisconnect} className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-xs text-slate-400 hover:bg-slate-800 hover:text-white">
+              <LogOut className="size-4" /> התנתקות מ-Airtable
+            </button>
+          )}
+          <p className="px-2 text-[11px] leading-relaxed text-slate-500">
+            {onDisconnect
+              ? 'הנתונים נטענים מ-Airtable לקריאה בלבד. שינויי סטטוס והערות נשמרים בדפדפן הזה ולא נכתבים ל-Airtable.'
+              : 'כל הנתונים במערכת הם נתוני דמה (Mock Data) לצורכי תרגול.'}
+          </p>
         </div>
       </aside>
     </>

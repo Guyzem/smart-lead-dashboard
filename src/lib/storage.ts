@@ -7,6 +7,9 @@ import { OPEN_STATUSES, STATUSES, isOpenStatus } from '../types';
  */
 export const STORAGE_KEY = 'lead-dashboard:v1';
 
+/** Separate override bucket per Airtable base/table, so local edits never leak between data sources. */
+export const airtableStorageKey = (baseId: string, table: string) => `lead-dashboard:v1:airtable:${baseId}:${table}`;
+
 export interface LeadOverride {
   status?: Status;
   lostAtStage?: OpenStatus | null;
@@ -43,10 +46,10 @@ function sanitizeOverride(v: unknown): LeadOverride | null {
   return Object.keys(out).length ? out : null;
 }
 
-export function loadOverrides(storage: Storage | undefined = defaultStorage()): Overrides {
+export function loadOverrides(storage: Storage | undefined = defaultStorage(), key: string = STORAGE_KEY): Overrides {
   if (!storage) return {};
   try {
-    const raw = storage.getItem(STORAGE_KEY);
+    const raw = storage.getItem(key);
     if (!raw) return {};
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== 'object' || (parsed as { version?: unknown }).version !== 1) return {};
@@ -63,11 +66,11 @@ export function loadOverrides(storage: Storage | undefined = defaultStorage()): 
   }
 }
 
-export function saveOverrides(overrides: Overrides, storage: Storage | undefined = defaultStorage()): void {
+export function saveOverrides(overrides: Overrides, storage: Storage | undefined = defaultStorage(), key: string = STORAGE_KEY): void {
   if (!storage) return;
   try {
-    if (Object.keys(overrides).length === 0) storage.removeItem(STORAGE_KEY);
-    else storage.setItem(STORAGE_KEY, JSON.stringify({ version: 1, overrides }));
+    if (Object.keys(overrides).length === 0) storage.removeItem(key);
+    else storage.setItem(key, JSON.stringify({ version: 1, overrides }));
   } catch {
     // Storage full or blocked: keep working in memory.
   }

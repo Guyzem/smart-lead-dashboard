@@ -13,4 +13,5 @@ globalThis.ResizeObserver ??= ResizeObserverStub as unknown as typeof ResizeObse
 afterEach(() => {
   cleanup();
   window.localStorage.clear();
+  window.sessionStorage.clear();
 });
