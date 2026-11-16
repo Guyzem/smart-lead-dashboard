@@ -1,6 +1,6 @@
 # LeadPulse · Smart Lead Management Dashboard
 
-דאשבורד לניהול, מעקב ותעדוף לידים, בעברית מלאה וב-RTL, מבוסס נתוני דמה (Mock Data).
+דאשבורד לניהול, מעקב ותעדוף לידים, בעברית מלאה וב-RTL. הלידים נטענים מטבלת Airtable.
 פותח במסגרת תרגול שיעור 3 בקורס מטמיעי AI, לפי התהליך **SPEC → REVIEW → BUILD → TEST → COMMIT**.
 
 - מפרט המוצר: [SPEC.md](SPEC.md)
@@ -18,11 +18,20 @@ npm run dev
 
 לאחר מכן פתח בדפדפן את הכתובת שמופיעה בטרמינל: **http://localhost:5173**
 
+## חיבור ל-Airtable
+
+בפתיחה מוצג מסך התחברות. צריך להזין:
+
+1. **Personal Access Token**: יוצרים ב-[airtable.com/create/tokens](https://airtable.com/create/tokens) עם ההרשאה `data.records:read`, ומוסיפים תחת Access את הבסיס "Lead Dashboard".
+2. **מזהה בסיס** (מתחיל ב-`app`) ו**טבלה**: ממולאים מראש לבסיס "Lead Dashboard" ולטבלת "לידים".
+
+הטוקן נשמר רק בדפדפן: בלי "זכור אותי" ב-`sessionStorage` (נמחק בסגירת הלשונית), עם "זכור אותי" ב-`localStorage`. הוא נשלח רק ל-`api.airtable.com`. "התנתקות מ-Airtable" בתפריט מוחקת אותו. הדאשבורד קורא בלבד: שינויי סטטוס והערות נשמרים בדפדפן ולא נכתבים ל-Airtable.
+
 ## גרסה אונליין (GitHub Pages)
 
 **https://guyzem.github.io/smart-lead-dashboard/**
 
-כל push ל-`main` מריץ את GitHub Actions ([deploy.yml](.github/workflows/deploy.yml)): קודם הבדיקות, אחר כך build, ורק אם הכול עבר מתבצע פרסום. נתוני הדמה והשינויים נשמרים ב-localStorage של כל דפדפן בנפרד.
+כל push ל-`main` מריץ את GitHub Actions ([deploy.yml](.github/workflows/deploy.yml)): קודם הבדיקות, אחר כך build, ורק אם הכול עבר מתבצע פרסום. השינויים המקומיים נשמרים ב-localStorage של כל דפדפן בנפרד.
 
 ## פקודות
 
@@ -46,13 +55,16 @@ npm run dev
 
 ```
 src/
-  data/generateLeads.ts   נתוני דמה דטרמיניסטיים (seed קבוע, 120 לידים)
+  data/generateLeads.ts   נתוני דמה דטרמיניסטיים לבדיקות (seed קבוע, 120 לידים)
+  lib/airtable.ts         טעינת לידים מ-Airtable REST API, מיפוי שדות והודעות שגיאה
+  lib/credentials.ts      שמירת החיבור בדפדפן בלבד (session/local) והתנתקות
   lib/scoring.ts          נוסחת Lead Score, עדיפות, סימון "ממתין לטיפול"
   lib/metrics.ts          KPI וכל נתוני הגרפים, מאותו מערך לידים
   lib/filters.ts          חיפוש, סינון ומיון
   lib/storage.ts          שמירה וטעינה מ-localStorage עם ולידציה
   state/useLeadStore.ts   מצב האפליקציה
   components/             רכיבי UI
+  Root.tsx                מסך החיבור לפני הדאשבורד
   App.tsx                 הרכבת המסכים
 e2e/                      בדיקות Playwright
 ```

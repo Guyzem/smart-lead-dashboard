@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { generateLeads } from '../data/generateLeads';
 import type { Lead, Status } from '../types';
 import type { LeadOverride, Overrides } from '../lib/storage';
-import { applyOverrides, defaultStorage, loadOverrides, noteAdded, saveOverrides, statusChange } from '../lib/storage';
+import { STORAGE_KEY, applyOverrides, defaultStorage, loadOverrides, noteAdded, saveOverrides, statusChange } from '../lib/storage';
 
 export interface LeadStore {
   leads: Lead[];
@@ -11,11 +11,20 @@ export interface LeadStore {
   reset: () => void;
 }
 
-export function useLeadStore(now: Date, storage: Storage | undefined = defaultStorage()): LeadStore {
-  const base = useMemo(() => generateLeads({ now }), [now]);
-  const [overrides, setOverrides] = useState<Overrides>(() => loadOverrides(storage));
+/**
+ * `source` = leads loaded from Airtable. Without it, the deterministic mock data is used
+ * (tests and offline development). Local edits are stored under `storageKey`.
+ */
+export function useLeadStore(
+  now: Date,
+  storage: Storage | undefined = defaultStorage(),
+  source?: Lead[],
+  storageKey: string = STORAGE_KEY,
+): LeadStore {
+  const base = useMemo(() => source ?? generateLeads({ now }), [source, now]);
+  const [overrides, setOverrides] = useState<Overrides>(() => loadOverrides(storage, storageKey));
 
-  useEffect(() => saveOverrides(overrides, storage), [overrides, storage]);
+  useEffect(() => saveOverrides(overrides, storage, storageKey), [overrides, storage, storageKey]);
 
   const leads = useMemo(() => applyOverrides(base, overrides), [base, overrides]);
 
