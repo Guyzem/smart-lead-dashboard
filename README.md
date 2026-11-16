@@ -27,6 +27,21 @@ npm run dev
 
 הטוקן נשמר רק בדפדפן: בלי "זכור אותי" ב-`sessionStorage` (נמחק בסגירת הלשונית), עם "זכור אותי" ב-`localStorage`. הוא נשלח רק ל-`api.airtable.com`. "התנתקות מ-Airtable" בתפריט מוחקת אותו. הדאשבורד קורא בלבד: שינויי סטטוס והערות נשמרים בדפדפן ולא נכתבים ל-Airtable.
 
+## מקור מידע חיצוני: Frankfurter API
+
+דוגמה לחיבור מקור נתונים חיצוני ציבורי (מתוך הרשימה [public-apis](https://github.com/public-apis/public-apis)). SPEC X1, קריטריון D16.
+
+| | |
+|---|---|
+| **שם** | [Frankfurter](https://frankfurter.dev) (קוד פתוח) |
+| **כתובת** | `https://api.frankfurter.dev/v1` (הכתובת הישנה `api.frankfurter.app` מפנה אליה) |
+| **מה הוא מספק** | שערי חליפין יומיים שמפרסם הבנק המרכזי האירופי (ECB), כולל שקל |
+| **מפתח / טוקן** | לא צריך. ה-API חינמי, פתוח ותומך ב-CORS, ולכן הדפדפן פונה אליו ישירות |
+| **הקריאה** | `GET /latest?from=ILS&to=USD,EUR,GBP`, בקשה אחת שמחזירה כמה $, € ו-£ שווה ₪1 ואת תאריך השער |
+| **איפה בקוד** | [src/lib/exchangeRates.ts](src/lib/exchangeRates.ts): כתובת הבסיס בקבוע `FRANKFURTER_BASE_URL`, הקריאה, הוולידציה והמטמון (שעה ב-`sessionStorage`). [src/state/useDisplayCurrency.ts](src/state/useDisplayCurrency.ts): המטבע הנבחר. [src/components/CurrencySelector.tsx](src/components/CurrencySelector.tsx): הבורר בכותרת |
+
+**בממשק:** בכותרת העליונה יש בורר "מטבע תצוגה" (₪ / $ / € / £). בבחירת מטבע זר, השווי ב-KPI, בטבלה, בכרטיס הליד, ב"במה לטפל היום", בביצועי הנציגים ובמשפך מוצג מומר, ומתחת לבורר מופיע "שער נכון ל-<תאריך> · מקור: Frankfurter / ECB". השערים נטענים רק כשבוחרים מטבע זר. אם הטעינה נכשלת, הבורר חוזר לשקלים עם הודעה. ה-Lead Score לא משתנה, כי הוא מחושב תמיד בשקלים. בבדיקות ה-API מדומה ואין פנייה אמיתית לרשת.
+
 ## גרסה אונליין (GitHub Pages)
 
 **https://guyzem.github.io/smart-lead-dashboard/**
@@ -57,6 +72,7 @@ npm run dev
 src/
   data/generateLeads.ts   נתוני דמה דטרמיניסטיים לבדיקות (seed קבוע, 120 לידים)
   lib/airtable.ts         טעינת לידים מ-Airtable REST API, מיפוי שדות והודעות שגיאה
+  lib/exchangeRates.ts    שערי מטבע מ-Frankfurter API, המרה ומטמון לשעה (SPEC X1)
   lib/credentials.ts      שמירת החיבור בדפדפן בלבד (session/local) והתנתקות
   lib/scoring.ts          נוסחת Lead Score, עדיפות, סימון "ממתין לטיפול"
   lib/metrics.ts          KPI וכל נתוני הגרפים, מאותו מערך לידים
