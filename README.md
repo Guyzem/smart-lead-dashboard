@@ -22,7 +22,7 @@ npm run dev
 
 בפתיחה מוצג מסך התחברות. צריך להזין:
 
-1. **Personal Access Token**: יוצרים ב-[airtable.com/create/tokens](https://airtable.com/create/tokens) עם ההרשאה `data.records:read`, ומוסיפים תחת Access את הבסיס "Lead Dashboard".
+1. **Personal Access Token**: יוצרים ב-[airtable.com/create/tokens](https://airtable.com/create/tokens) עם ההרשאות `data.records:read` ו-`data.records:write` (לכתיבה חזרה של סטטוסים והערות, SPEC X2), ומוסיפים תחת Access **רק** את הבסיס "Lead Dashboard".
 2. **מזהה בסיס** (מתחיל ב-`app`) ו**טבלה**: ממולאים מראש לבסיס "Lead Dashboard" ולטבלת "לידים".
 
 הטוקן נשמר רק בדפדפן: בלי "זכור אותי" ב-`sessionStorage` (נמחק בסגירת הלשונית), עם "זכור אותי" ב-`localStorage`. הוא נשלח רק ל-`api.airtable.com`. "התנתקות מ-Airtable" בתפריט מוחקת אותו. הדאשבורד קורא בלבד: שינויי סטטוס והערות נשמרים בדפדפן ולא נכתבים ל-Airtable.

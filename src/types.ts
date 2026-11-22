@@ -35,6 +35,8 @@ export interface Lead {
   lastActivityAt: string; // ISO
   lostAtStage: OpenStatus | null;
   notes: Note[];
+  /** Airtable record id (`rec…`), set only for leads loaded from Airtable (SPEC X2). */
+  recordId?: string;
 }
 
 export type Priority = 'hot' | 'warm' | 'cold';

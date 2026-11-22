@@ -45,7 +45,7 @@ export function ConnectScreen({ onConnect, busy, error, initial }: {
         <form onSubmit={submit} className="space-y-4 rounded-2xl border border-slate-200/80 bg-white p-6 shadow-sm" aria-label="התחברות ל-Airtable" noValidate>
           <header className="space-y-1">
             <h1 className="flex items-center gap-2 text-xl font-bold text-slate-900"><KeyRound className="size-5 text-indigo-500" /> התחברות ל-Airtable</h1>
-            <p className="text-sm text-slate-500">כדי להציג את הלידים, הזן Personal Access Token של Airtable עם הרשאת קריאה לבסיס הלידים.</p>
+            <p className="text-sm text-slate-500">כדי להציג את הלידים, הזן Personal Access Token של Airtable עם הרשאות קריאה וכתיבה לבסיס הלידים.</p>
           </header>
 
           <label className="block space-y-1.5">
@@ -117,7 +117,7 @@ export function ConnectScreen({ onConnect, busy, error, initial }: {
               <a href="https://airtable.com/create/tokens" target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-medium text-indigo-600 hover:underline">
                 ליצירת טוקן ב-Airtable <ExternalLink className="size-3" />
               </a>
-              {' '}בחר הרשאה <span dir="ltr" className="font-mono">data.records:read</span> והוסף את הבסיס של הלידים.
+              {' '}בחר הרשאות <span dir="ltr" className="font-mono">data.records:read</span> ו-<span dir="ltr" className="font-mono">data.records:write</span> והוסף רק את הבסיס של הלידים.
             </p>
           </div>
         </form>

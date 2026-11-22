@@ -20,8 +20,14 @@ import { useLeadStore } from './state/useLeadStore';
 import { MoneyContext, useDisplayCurrency } from './state/useDisplayCurrency';
 import type { ExchangeRates } from './lib/exchangeRates';
 import type { Lead } from './types';
+import type { AirtableConfig } from './lib/airtable';
+import type { SyncOptions } from './state/useAirtableSync';
+import { useAirtableSync } from './state/useAirtableSync';
+import { SyncStatus } from './components/SyncStatus';
 
 export interface AirtableConnection {
+  /** SPEC X2: used to write changes back. */
+  config: AirtableConfig;
   loadedAt: Date;
   refreshing: boolean;
   refreshError: string | null;
@@ -37,7 +43,7 @@ const TITLES: Record<View, { title: string; subtitle: string }> = {
   scoring: { title: 'שיטת הניקוד', subtitle: 'איך המערכת מתעדפת לידים' },
 };
 
-export default function App({ now: nowProp, storage = defaultStorage(), leads, storageKey, connection, loadRates }: {
+export default function App({ now: nowProp, storage = defaultStorage(), leads, storageKey, connection, loadRates, syncOptions }: {
   now?: Date;
   storage?: Storage;
   /** Leads loaded from Airtable. Omitted → deterministic mock data (tests / offline). */
@@ -46,10 +52,13 @@ export default function App({ now: nowProp, storage = defaultStorage(), leads, s
   connection?: AirtableConnection;
   /** SPEC X1: injectable rate loader (tests). Default: Frankfurter with a 1-hour cache. */
   loadRates?: () => Promise<ExchangeRates>;
+  /** SPEC X2: injectable fetch and timings for the write-back (tests). */
+  syncOptions?: SyncOptions;
 }) {
   const now = useMemo(() => nowProp ?? new Date(), [nowProp]);
   const store = useLeadStore(now, storage, leads, storageKey);
   const fx = useDisplayCurrency(loadRates);
+  const sync = useAirtableSync(connection?.config ?? null, store, syncOptions); // SPEC X2
 
   const [view, setView] = useState<View>('overview');
   const [filters, setFilters] = useState<LeadFilters>(EMPTY_FILTERS);
@@ -77,7 +86,7 @@ export default function App({ now: nowProp, storage = defaultStorage(), leads, s
 
   const reset = () => {
     const question = connection
-      ? 'לבטל את כל השינויים המקומיים (סטטוסים והערות) ולחזור לנתונים כפי שהם ב-Airtable?'
+      ? 'לבטל את השינויים שעדיין לא נשמרו ב-Airtable? שינויים שכבר נשמרו לא יבוטלו.'
       : 'לאפס את כל השינויים (סטטוסים והערות) ולחזור לנתוני הדמה המקוריים?';
     if (window.confirm(question)) {
       store.reset();
@@ -87,12 +96,20 @@ export default function App({ now: nowProp, storage = defaultStorage(), leads, s
   };
 
   const closeDrawer = useCallback(() => setSelectedId(null), []);
+
+  // SPEC X2: warn before disconnecting while changes are not in Airtable yet.
+  const disconnect = connection
+    ? () => {
+        const unsaved = sync.pendingCount + sync.errorCount;
+        if (unsaved === 0 || window.confirm(`יש ${unsaved} שינויים שעדיין לא נשמרו ב-Airtable. להתנתק בכל זאת?`)) connection.onDisconnect();
+      }
+    : undefined;
   const { title, subtitle } = TITLES[view];
 
   return (
     <MoneyContext.Provider value={fx.money}>
     <div className="min-h-screen lg:flex">
-      <Sidebar active={activeNav} staleCount={allStale} open={menuOpen} onNavigate={navigate} onClose={() => setMenuOpen(false)} onReset={reset} onDisconnect={connection?.onDisconnect} />
+      <Sidebar active={activeNav} staleCount={allStale} open={menuOpen} onNavigate={navigate} onClose={() => setMenuOpen(false)} onReset={reset} onDisconnect={disconnect} />
 
       <div className="min-w-0 flex-1">
         <header className="sticky top-0 z-20 border-b border-slate-200/70 bg-white/80 backdrop-blur">
@@ -111,6 +128,8 @@ export default function App({ now: nowProp, storage = defaultStorage(), leads, s
                 <span className="hidden items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs text-emerald-700 ring-1 ring-inset ring-emerald-600/20 md:inline-flex" data-testid="source-badge">
                   <Database className="size-3.5" /> Airtable · נטען {formatDate(connection.loadedAt.toISOString())}
                 </span>
+                {/* SPEC X2 */}
+                <SyncStatus sync={sync} />
                 <button
                   type="button"
                   onClick={connection.onRefresh}
@@ -137,6 +156,12 @@ export default function App({ now: nowProp, storage = defaultStorage(), leads, s
           {connection?.refreshError && (
             <p role="alert" className="flex items-start gap-2 rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700 ring-1 ring-inset ring-rose-600/20">
               <AlertCircle className="mt-0.5 size-4 shrink-0" /> <span>הרענון נכשל: {connection.refreshError} מוצגים הנתונים שנטענו קודם.</span>
+            </p>
+          )}
+          {connection && sync.error && (
+            <p role="alert" data-testid="sync-error" className="flex flex-wrap items-start gap-2 rounded-xl bg-rose-50 px-3 py-2.5 text-sm text-rose-700 ring-1 ring-inset ring-rose-600/20">
+              <AlertCircle className="mt-0.5 size-4 shrink-0" /> <span className="min-w-0 flex-1">שמירה ב-Airtable נכשלה: {sync.error}</span>
+              <button type="button" onClick={sync.retry} className="font-semibold underline">נסה שוב</button>
             </p>
           )}
           {view !== 'scoring' && (
@@ -176,7 +201,14 @@ export default function App({ now: nowProp, storage = defaultStorage(), leads, s
         </main>
       </div>
 
-      <LeadDrawer lead={selected} now={now} onClose={closeDrawer} onStatusChange={store.setStatus} onAddNote={store.addNote} />
+      <LeadDrawer
+        lead={selected}
+        now={now}
+        onClose={closeDrawer}
+        onStatusChange={store.setStatus}
+        onAddNote={store.addNote}
+        syncState={connection && selected ? sync.stateOf(selected.id) : undefined}
+      />
     </div>
     </MoneyContext.Provider>
   );

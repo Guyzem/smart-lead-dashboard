@@ -8,15 +8,31 @@ import { FRANKFURTER_RESPONSE } from '../src/test/rateFixtures';
  * Airtable is stubbed with page.route: no real token or network call is ever used.
  */
 
-const airtablePages = pages(generateLeads().map(toAirtableRecord));
-
-async function stubAirtable(page: Page, status = 200) {
+/**
+ * Stateful fake of the "לידים" table: GET pages through the records, PATCH (SPEC X2) updates them,
+ * so a reload shows what was written. `patchStatus` makes writes fail with that HTTP status.
+ */
+async function stubAirtable(page: Page, status = 200, { patchStatus = 200 }: { patchStatus?: number } = {}) {
+  const records = generateLeads().map(toAirtableRecord);
+  const patches: { id: string; fields: Record<string, unknown> }[][] = [];
   await page.route('https://api.airtable.com/**', (route) => {
     if (status !== 200) return route.fulfill({ status, json: { error: { type: 'AUTHENTICATION_REQUIRED' } } });
-    const offset = new URL(route.request().url()).searchParams.get('offset');
+    const req = route.request();
+    if (req.method() === 'PATCH') {
+      const body = req.postDataJSON() as { records: { id: string; fields: Record<string, unknown> }[] };
+      patches.push(body.records);
+      if (patchStatus !== 200) return route.fulfill({ status: patchStatus, json: { error: { type: 'INVALID_PERMISSIONS' } } });
+      for (const u of body.records) {
+        const rec = records.find((r) => r.id === u.id);
+        if (rec) for (const [k, v] of Object.entries(u.fields)) { if (v === null) delete rec.fields[k]; else rec.fields[k] = v; }
+      }
+      return route.fulfill({ json: { records: body.records } });
+    }
+    const offset = new URL(req.url()).searchParams.get('offset');
     const index = offset ? Number(offset.replace('itr', '')) / 100 : 0;
-    return route.fulfill({ json: airtablePages[index] });
+    return route.fulfill({ json: pages(records)[index] });
   });
+  return patches;
 }
 
 async function connect(page: Page) {
@@ -108,7 +124,7 @@ for (const width of [1440, 375]) {
   });
 }
 
-test('D5/D11: status change updates KPIs live and survives reload; reset restores', async ({ page }) => {
+test('D5/D11/D17: status change updates KPIs live, is written to Airtable and survives reload', async ({ page }) => {
   const errors = trackErrors(page);
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.getByRole('complementary', { name: 'תפריט ראשי' }).getByRole('button', { name: /כל הלידים/ }).click();
@@ -121,13 +137,11 @@ test('D5/D11: status change updates KPIs live and survives reload; reset restore
   test.skip(current === 'won', 'top lead already won');
   await select.selectOption('won');
   await expect(kpi(page, 'won')).toHaveText(String(before + 1));
+  await expect(page.getByTestId('sync-status')).toHaveAttribute('data-state', 'saved');
 
+  // Reload reads from the (fake) Airtable table, which now holds the change.
   await page.reload();
   await expect(kpi(page, 'won')).toHaveText(String(before + 1));
-
-  page.once('dialog', (d) => d.accept());
-  await page.getByRole('button', { name: /ביטול שינויים מקומיים/ }).click();
-  await expect(kpi(page, 'won')).toHaveText(String(before));
   expect(errors).toEqual([]);
 });
 
@@ -197,4 +211,50 @@ test('D16: rate error falls back to ₪ with a Hebrew message', async ({ page })
   await expect(page.getByLabel('מטבע תצוגה')).toHaveValue('ILS');
   await expect(kpi(page, 'pipeline')).toContainText('₪');
 });
+});
+
+test.describe('D17: write-back failures', () => {
+  test('a failed write shows an error, survives reload, and "ביטול שינויים מקומיים" cancels it', async ({ page }) => {
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(e.message));
+    const patches = await stubAirtable(page, 200, { patchStatus: 403 });
+    await page.goto('/');
+    await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
+    await page.reload();
+    await connect(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.getByRole('complementary', { name: 'תפריט ראשי' }).getByRole('button', { name: /כל הלידים/ }).click();
+    const before = Number(await kpi(page, 'won').innerText());
+    const select = page.getByLabel(/^שינוי סטטוס עבור/).first();
+    test.skip((await select.inputValue()) === 'won', 'top lead already won');
+    await select.selectOption('won');
+
+    await expect(page.getByTestId('sync-status')).toHaveAttribute('data-state', 'error');
+    await expect(page.getByTestId('sync-error')).toContainText('data.records:write');
+    expect(patches).toHaveLength(1); // 403 is not retried
+
+    page.on('dialog', (d) => d.accept()); // beforeunload + confirm
+    await page.reload();
+    await expect(kpi(page, 'won')).toHaveText(String(before + 1));
+
+    await page.getByRole('button', { name: /ביטול שינויים מקומיים/ }).click();
+    await expect(kpi(page, 'won')).toHaveText(String(before));
+    await expect(page.getByTestId('sync-status')).toHaveAttribute('data-state', 'saved');
+    expect(errors).toEqual([]);
+  });
+
+  test('error indicator fits at 375px without horizontal scroll', async ({ page }) => {
+    await stubAirtable(page, 200, { patchStatus: 403 });
+    await page.setViewportSize({ width: 375, height: 800 });
+    await page.goto('/');
+    await page.evaluate(() => { localStorage.clear(); sessionStorage.clear(); });
+    await page.reload();
+    await connect(page);
+    await page.getByRole('button', { name: 'פתיחת תפריט' }).click();
+    await page.getByRole('complementary', { name: 'תפריט ראשי' }).getByRole('button', { name: /כל הלידים/ }).click();
+    const select = page.getByLabel(/^שינוי סטטוס עבור/).first();
+    await select.selectOption((await select.inputValue()) === 'won' ? 'lost' : 'won');
+    await expect(page.getByTestId('sync-status')).toHaveAttribute('data-state', 'error');
+    expect(await noHorizontalScroll(page)).toBe(true);
+  });
 });

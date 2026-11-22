@@ -34,6 +34,7 @@ export const FIELDS = {
   createdAt: 'תאריך יצירה',
   lastActivityAt: 'פעילות אחרונה',
   lostAtStage: 'אבד בשלב',
+  stale: 'ממתין לטיפול',
   notes: 'הערות',
 } as const;
 
@@ -149,15 +150,16 @@ export function mapRecord(rec: AirtableRecord, now: Date): Lead | null {
     lastActivityAt,
     lostAtStage,
     notes: toNotes(f[FIELDS.notes], id, lastActivityAt),
+    recordId: rec.id,
   };
 }
 
 // ---------- fetching ----------
 
-const API = 'https://api.airtable.com/v0';
+export const API = 'https://api.airtable.com/v0';
 const MAX_PAGES = 100; // 100 records per page → up to 10,000 leads
 
-function errorFromStatus(status: number): AirtableError {
+export function errorFromStatus(status: number): AirtableError {
   if (status === 401) return new AirtableError('invalid-token', ERROR_MESSAGES['invalid-token']);
   if (status === 403) return new AirtableError('forbidden', ERROR_MESSAGES.forbidden);
   if (status === 404 || status === 422) return new AirtableError('not-found', ERROR_MESSAGES['not-found']);
