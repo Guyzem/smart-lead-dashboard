@@ -16,6 +16,14 @@ const connection = { config, loadedAt: NOW, refreshing: false, refreshError: nul
 const ok = () => Promise.resolve(new Response('{}', { status: 200 }));
 const fast = { debounceMs: 20, retryDelays: [0, 0, 0], rateLimitDelay: 0 };
 
+/** A fetch that waits until `release()`, so the test can see the "pending" state deterministically. */
+function gatedFetch() {
+  let release!: () => void;
+  const gate = new Promise<void>((r) => { release = r; });
+  const fetchImpl = vi.fn(async () => { await gate; return new Response('{}', { status: 200 }); });
+  return { fetchImpl, release };
+}
+
 function renderApp(fetchImpl: ReturnType<typeof vi.fn>, opts: { withConnection?: boolean } = {}) {
   return render(
     <App now={NOW} leads={leads} storageKey={key} connection={opts.withConnection === false ? undefined : connection} syncOptions={{ ...fast, fetchImpl: fetchImpl as unknown as typeof fetch }} />,
@@ -36,11 +44,12 @@ const syncState = () => screen.getByTestId('sync-status').getAttribute('data-sta
 describe('useAirtableSync (SPEC X2)', () => {
   it('status change sends one PATCH with only the changed fields, by record id, then shows saved', async () => {
     const user = userEvent.setup();
-    const fetchImpl = vi.fn(ok);
+    const { fetchImpl, release } = gatedFetch();
     renderApp(fetchImpl);
     expect(syncState()).toBe('saved');
     const lead = await changeFirstStatus(user);
     expect(syncState()).toBe('pending');
+    release();
     await waitFor(() => expect(syncState()).toBe('saved'));
     expect(fetchImpl).toHaveBeenCalledTimes(1);
     const { records, typecast } = bodyOf(fetchImpl);
@@ -68,7 +77,7 @@ describe('useAirtableSync (SPEC X2)', () => {
 
   it('adding a note writes all notes as multi-line text', async () => {
     const user = userEvent.setup();
-    const fetchImpl = vi.fn(ok);
+    const { fetchImpl, release } = gatedFetch();
     renderApp(fetchImpl);
     await user.click(within(screen.getByRole('complementary', { name: 'תפריט ראשי' })).getByRole('button', { name: /כל הלידים/ }));
     await user.click(screen.getAllByTestId('lead-row')[0]);
@@ -76,6 +85,7 @@ describe('useAirtableSync (SPEC X2)', () => {
     await user.type(within(drawer).getByLabelText('הערה חדשה'), 'שיחת המשך');
     await user.click(within(drawer).getByRole('button', { name: /הוספת הערה/ }));
     expect(within(drawer).getByTestId('lead-sync')).toHaveAttribute('data-state', 'pending');
+    release();
     await waitFor(() => expect(within(drawer).getByTestId('lead-sync')).toHaveAttribute('data-state', 'saved'));
     const fields = bodyOf(fetchImpl).records[0].fields;
     expect(fields[FIELDS.notes].split('\n').at(-1)).toBe('שיחת המשך');
