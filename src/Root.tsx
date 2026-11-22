@@ -126,7 +126,7 @@ export default function Root({ fetchLeads = fetchAirtableLeads }: { fetchLeads?:
       key={`${state.config.baseId}:${state.config.table}`}
       leads={state.leads}
       storageKey={airtableStorageKey(state.config.baseId, state.config.table)}
-      connection={{ loadedAt: state.loadedAt, refreshing: state.refreshing, refreshError: state.refreshError, onRefresh: refresh, onDisconnect: disconnect }}
+      connection={{ config: state.config, loadedAt: state.loadedAt, refreshing: state.refreshing, refreshError: state.refreshError, onRefresh: refresh, onDisconnect: disconnect }}
     />
   );
 }

@@ -8,6 +8,8 @@ import { useMoney } from '../state/useDisplayCurrency';
 import type { ScoredLead, Status } from '../types';
 import { StatusSelect } from './LeadsTable';
 import { PriorityBadge, ScorePill } from './ui';
+import { LeadSyncBadge } from './SyncStatus';
+import type { LeadSyncState } from '../state/useAirtableSync';
 
 function Row({ icon, label, children }: { icon: ReactNode; label: string; children: ReactNode }) {
   return (
@@ -19,12 +21,14 @@ function Row({ icon, label, children }: { icon: ReactNode; label: string; childr
   );
 }
 
-export function LeadDrawer({ lead, now, onClose, onStatusChange, onAddNote }: {
+export function LeadDrawer({ lead, now, onClose, onStatusChange, onAddNote, syncState }: {
   lead: ScoredLead | null;
   now: Date;
   onClose: () => void;
   onStatusChange: (id: string, s: Status) => void;
   onAddNote: (id: string, text: string) => void;
+  /** SPEC X2: shown only when connected to Airtable. */
+  syncState?: LeadSyncState;
 }) {
   const money = useMoney(); // SPEC X1
   const [draft, setDraft] = useState('');
@@ -72,6 +76,7 @@ export function LeadDrawer({ lead, now, onClose, onStatusChange, onAddNote }: {
           <div className="flex flex-wrap items-center gap-2">
             <StatusSelect lead={lead} onChange={(s) => onStatusChange(lead.id, s)} />
             <PriorityBadge priority={lead.priority} />
+            {syncState && <LeadSyncBadge state={syncState} />}
             {lead.stale && (
               <span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-xs font-medium text-rose-700 ring-1 ring-inset ring-rose-600/20">
                 <AlarmClock className="size-3" /> ממתין לטיפול {daysSince(lead.lastActivityAt, now)} ימים
